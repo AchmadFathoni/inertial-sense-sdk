@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 	// please see the user manual for additional updates and notes
 
     // Get PINS1 @ 10Hz on the connected serial port, leave all other broadcasts the same, and save persistent messages.
-	const char* asciiMessage = "ASCB,512,,,1000,,,,,,,,,";
+    const char* asciiMessage = "ASCB,8,0,0,0,0,0,0,0,0,0,1000,0,0";
 
     // Get PINS1 @ 50Hz and PGPSP @ 5Hz on the connected serial port, leave all other broadcasts the same
 //     const char* asciiMessage = "ASCB,,,,20,,200,,,,,,,";
@@ -86,9 +86,15 @@ int main(int argc, char* argv[])
 		printf("Failed to encode ASCII get INS message\r\n");
 		return -4;
 	}
+    const char* asciiMessage2 = "ASCB,4,0,0,0,1000,0,0,0,0,0,0,0,0";
+    if (!serialPortWriteAscii(&serialPort, asciiMessage2, (int)strnlen(asciiMessage2, 128)))
+    {
+        printf("Failed to encode ASCII2 get INS message\r\n");
+        return -4;
+    }
 
 
-#if 0
+#if 1
     // STEP 5: (optional) Save Persistent Messages.  This remembers the current communications and automatically streams data following reboot.
     if (!serialPortWriteAscii(&serialPort, "PERS", 4))
     {
