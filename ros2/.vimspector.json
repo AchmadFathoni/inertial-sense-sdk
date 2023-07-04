@@ -1,0 +1,25 @@
+{
+    "configurations": {
+        "test": {
+            "adapter": "vscode-cpptools",
+            "configuration": {
+                "request": "launch",
+                "program": "${workspaceRoot}/../../../install/inertial_sense_ros/lib/inertial_sense_ros/inertial_sense_node",
+                "args": ["${workspaceRoot}/launch/params.yaml"],
+            "setupCommands": [{
+                "description": "Enable pretty-printing for gdb",
+                "text": "-enable-pretty-printing",
+                "ignoreFailures": true
+            },{
+                "description": "Enbale debug info",
+                "text": " -gdb-set debuginfod enabled off"
+            }],
+               "breakpoints": {
+                    "exception": {
+                        "all": "N"
+                    }
+                }
+            }
+        }
+    }
+}
