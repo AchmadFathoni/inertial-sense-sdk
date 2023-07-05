@@ -196,3 +196,14 @@ gps2:
         topic: "rel"
       info:
         topic: "info"
+
+rtk_rover:
+  positioning_enable: true                     # Enable RTK precision positioning at GPS1
+  compassing_enable: true                      # Enable RTK compassing (dual GNSS moving baseline RTK) at GPS2
+  correction_input:
+    select: radio                       # Select correction input settings
+
+    radio:
+      type: "evb"
+      format: RTCM3
+      port: "LoRa"
