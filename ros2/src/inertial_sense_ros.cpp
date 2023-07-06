@@ -92,12 +92,12 @@ void InertialSenseROS::terminate() {
 void InertialSenseROS::initializeIS(bool configFlashParameters) {
     if (connect()) {
         // Check protocol and firmware version
-        firmware_compatiblity_check();
+        //firmware_compatiblity_check();
 
         IS_.StopBroadcasts(true);
         configure_data_streams(true);
         configure_rtk();
-        IS_.SavePersistent();
+        //IS_.SavePersistent();
 
         if (configFlashParameters)
         {   // Set IMX flash parameters (flash write) after everything else so processor stall doesn't interfere with communications.
@@ -115,11 +115,11 @@ void InertialSenseROS::initializeROS() {
     multi_mag_cal_srv_              = create_service<std_srvs::srv::Trigger>("multi_axis_mag_cal", std::bind(&InertialSenseROS::perform_multi_mag_cal_srv_callback, this, _1, _2));
     //firmware_update_srv_            = create_service<inertial_sense_ros::srv::FirmwareUpdate>("firmware_update", std::bind(&InertialSenseROS::update_firmware_srv_callback, this, _1, _2));
 
-    SET_CALLBACK(DID_STROBE_IN_TIME, strobe_in_time_t, strobe_in_time_callback, 1); // we always want the strobe
+    //SET_CALLBACK(DID_STROBE_IN_TIME, strobe_in_time_t, strobe_in_time_callback, 1); // we always want the strobe
 
     //////////////////////////////////////////////////////////
     // Publishers
-    strobe_pub_ = create_publisher<std_msgs::msg::Header>(rs_.strobe_in.topic, 1);
+    //strobe_pub_ = create_publisher<std_msgs::msg::Header>(rs_.strobe_in.topic, 1);
 
     if (rs_.did_ins1.enabled)               { rs_.did_ins1.pub = create_publisher<inertial_sense_ros::msg::DIDINS1>(rs_.did_ins1.topic, 1); }
     if (rs_.did_ins2.enabled)               { rs_.did_ins2.pub = create_publisher<inertial_sense_ros::msg::DIDINS2>(rs_.did_ins2.topic, 1); }
