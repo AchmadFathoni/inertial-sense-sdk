@@ -32,7 +32,7 @@ port: [/dev/ttyACM0, /dev/ttyACM1]
 baudrate: 921600
 enable_log: false
 publishTf: true                                 # Publish Transform Frame (TR)
-frame_id: ""                                    # FIXME: What is this?  is it just the FrameID to use in the ROS messages?
+frame_id: "ins"                                  # FrameID of ROS sensor messages. Odometry messages and TR uses hard-coded parent FrameID & uses this as child FrameID
 mag_declination: 0.0
 ref_lla: [0.0, 0.0, 0.0]
 
