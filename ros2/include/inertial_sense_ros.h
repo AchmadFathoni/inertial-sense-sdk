@@ -139,14 +139,6 @@ public:
     std::shared_ptr<tf2_ros::TransformBroadcaster> br;
 
     bool publishTf_ = true;
-    tf2::Transform transform_NED;
-    tf2::Transform transform_ENU;
-    tf2::Transform transform_ECEF;
-    enum
-    {
-        NED,
-        ENU
-    } ltcf;
 
     rclcpp::Publisher<std_msgs::msg::Header>::SharedPtr strobe_pub_;
     rclcpp::TimerBase::SharedPtr obs_bundle_timer_;
@@ -404,5 +396,5 @@ public:
         int cb_options;
     } evb_ = {};
 private:
-    void broadcat_tf2(tf2::Transform &tf, const nav_msgs::msg::Odometry &msg, const std::string& parent, const std::string& child);
+    void broadcast_tf2(const nav_msgs::msg::Odometry &msg);
 };

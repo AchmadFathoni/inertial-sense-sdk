@@ -505,7 +505,7 @@ void InertialSenseROS::configure_ascii_output()
  */
 bool InertialSenseROS::connect(float timeout)
 {
-    uint32_t end_time = this->get_clock()->now().seconds() + timeout;
+    uint32_t end_time = this->now().seconds() + timeout;
     auto ports_iterator = ports_.begin();
 
     do {
@@ -525,7 +525,7 @@ bool InertialSenseROS::connect(float timeout)
             ports_iterator++;
         else
             ports_iterator = ports_.begin(); // just keep looping until we timeout below
-    } while (this->get_clock()->now().seconds() < end_time);
+    } while (this->now().seconds() < end_time);
 
     return sdk_connected_;
 }
@@ -718,7 +718,7 @@ void InertialSenseROS::rtk_connectivity_watchdog_timer_callback()
         if (config.data_transmission_interruption_count_ >= config.data_transmission_interruption_limit_)
         {
             if (config.traffic_time > 0.0)
-                RCLCPP_WARN_STREAM(this->get_logger(), "Last received RTK correction data was " << (this->get_clock()->now().seconds() - config.traffic_time) << " seconds ago. Attempting to re-establish connection.");
+                RCLCPP_WARN_STREAM(this->get_logger(), "Last received RTK correction data was " << (this->now().seconds() - config.traffic_time) << " seconds ago. Attempting to re-establish connection.");
             connect_rtk_client(config);
             if (config.connected_) {
                 config.traffic_total_byte_count_ = latest_byte_count;
@@ -726,12 +726,12 @@ void InertialSenseROS::rtk_connectivity_watchdog_timer_callback()
             }
         } else {
             if (config.traffic_time > 0.0)
-                RCLCPP_WARN_STREAM(this->get_logger(), "Last received RTK correction data was " << (this->get_clock()->now().seconds() - config.traffic_time) << " seconds ago.");
+                RCLCPP_WARN_STREAM(this->get_logger(), "Last received RTK correction data was " << (this->now().seconds() - config.traffic_time) << " seconds ago.");
         }
     }
     else
     {
-        config.traffic_time = this->get_clock()->now().seconds();
+        config.traffic_time = this->now().seconds();
         config.traffic_total_byte_count_ = latest_byte_count;
         config.data_transmission_interruption_count_ = 0;
     }
@@ -1016,7 +1016,8 @@ void InertialSenseROS::INS4_callback(eDataIDs DID, const ins_4_t *const msg)
                 msg_odom_ecef.twist.covariance[i] = Pout[i];
             }
             msg_odom_ecef.header.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeek);
-            msg_odom_ecef.header.frame_id = frame_id_;
+            msg_odom_ecef.header.frame_id = "earth";
+            msg_odom_ecef.child_frame_id = frame_id_;
 
             // Position
             msg_odom_ecef.pose.pose.position.x = msg->ecef[0];
@@ -1049,7 +1050,7 @@ void InertialSenseROS::INS4_callback(eDataIDs DID, const ins_4_t *const msg)
 
             if (publishTf_)
             {
-                broadcat_tf2(transform_ECEF, msg_odom_ecef, "ins_base_link_ecef", "ins_ecef");
+                broadcast_tf2(msg_odom_ecef);
             }
         }
 
@@ -1082,7 +1083,8 @@ void InertialSenseROS::INS4_callback(eDataIDs DID, const ins_4_t *const msg)
             }
 
             msg_odom_ned.header.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeek);
-            msg_odom_ned.header.frame_id = frame_id_;
+            msg_odom_ned.header.frame_id = "odom_ned";
+            msg_odom_ned.child_frame_id = frame_id_;
 
             // Position
             ixVector3d llaPosRadians;
@@ -1126,7 +1128,7 @@ void InertialSenseROS::INS4_callback(eDataIDs DID, const ins_4_t *const msg)
 
             if (publishTf_)
             {
-                broadcat_tf2(transform_NED, msg_odom_ned, "ins_base_link_ned", "ins_ned");
+                broadcast_tf2(msg_odom_ned);
             }
         }
 
@@ -1165,7 +1167,8 @@ void InertialSenseROS::INS4_callback(eDataIDs DID, const ins_4_t *const msg)
             }
 
             msg_odom_enu.header.stamp = ros_time_from_week_and_tow(msg->week, msg->timeOfWeek);
-            msg_odom_enu.header.frame_id = frame_id_;
+            msg_odom_enu.header.frame_id = "odom_enu";
+            msg_odom_enu.child_frame_id = frame_id_;
 
             // Position
                 //Calculate in NED then convert
@@ -1211,7 +1214,7 @@ void InertialSenseROS::INS4_callback(eDataIDs DID, const ins_4_t *const msg)
             rs_.odom_ins_enu.pub->publish(msg_odom_enu);
             if (publishTf_)
             {
-                broadcat_tf2(transform_ENU, msg_odom_enu, "ins_base_link_enu", "ins_enu");
+                broadcast_tf2(msg_odom_enu);
             }
         }
     }
@@ -1754,15 +1757,15 @@ void InertialSenseROS::GPS_obs_callback(eDataIDs DID, const obsd_t *const msg, i
         {
         case DID_GPS1_RAW:
             gps1_obs_Vec_.obs.push_back(obs);
-            last_obs_time_1_ = this->get_clock()->now();
+            last_obs_time_1_ = this->now();
             break;
         case DID_GPS2_RAW:
             gps2_obs_Vec_.obs.push_back(obs);
-            last_obs_time_2_ = this->get_clock()->now();
+            last_obs_time_2_ = this->now();
             break;
         case DID_GPS_BASE_RAW:
             base_obs_Vec_.obs.push_back(obs);
-            last_obs_time_base_ = this->get_clock()->now();
+            last_obs_time_base_ = this->now();
             break;
         }
     }
@@ -1772,7 +1775,7 @@ void InertialSenseROS::GPS_obs_bundle_timer_callback()
 {
     if (gps1_obs_Vec_.obs.size() != 0)
     {
-        if (abs(this->get_clock()->now().seconds() - last_obs_time_1_.seconds()) > 1e-2)
+        if (abs(this->now().seconds() - last_obs_time_1_.seconds()) > 1e-2)
         {
             gps1_obs_Vec_.header.stamp = ros_time_from_gtime(gps1_obs_Vec_.obs[0].time.time, gps1_obs_Vec_.obs[0].time.sec);
             gps1_obs_Vec_.time = gps1_obs_Vec_.obs[0].time;
@@ -1782,7 +1785,7 @@ void InertialSenseROS::GPS_obs_bundle_timer_callback()
     }
     if (gps2_obs_Vec_.obs.size() != 0)
     {
-        if (abs(this->get_clock()->now().seconds() - last_obs_time_2_.seconds()) > 1e-2)
+        if (abs(this->now().seconds() - last_obs_time_2_.seconds()) > 1e-2)
         {
             gps2_obs_Vec_.header.stamp = ros_time_from_gtime(gps2_obs_Vec_.obs[0].time.time, gps2_obs_Vec_.obs[0].time.sec);
             gps2_obs_Vec_.time = gps2_obs_Vec_.obs[0].time;
@@ -1792,7 +1795,7 @@ void InertialSenseROS::GPS_obs_bundle_timer_callback()
     }
     if (base_obs_Vec_.obs.size() != 0)
     {
-        if (abs(this->get_clock()->now().seconds() - last_obs_time_base_.seconds()) > 1e-2)
+        if (abs(this->now().seconds() - last_obs_time_base_.seconds()) > 1e-2)
         {
             base_obs_Vec_.header.stamp = ros_time_from_gtime(base_obs_Vec_.obs[0].time.time, base_obs_Vec_.obs[0].time.sec);
             base_obs_Vec_.time = base_obs_Vec_.obs[0].time;
@@ -1895,7 +1898,7 @@ void InertialSenseROS::diagnostics_callback()
     }
     // Create diagnostic objects
     diagnostic_msgs::msg::DiagnosticArray diag_array;
-    diag_array.header.stamp = this->get_clock()->now();
+    diag_array.header.stamp = this->now();
 
     // CNO mean
     diagnostic_msgs::msg::DiagnosticStatus cno_mean;
@@ -2141,11 +2144,11 @@ rclcpp::Time InertialSenseROS::ros_time_from_week_and_tow(const uint32_t week, c
         if (!got_first_message_)
         {
             got_first_message_ = true;
-            INS_local_offset_ = this->get_clock()->now().seconds() - timeOfWeek;
+            INS_local_offset_ = this->now().seconds() - timeOfWeek;
         }
         else // low-pass filter offset to account for drift
         {
-            double y_offset = this->get_clock()->now().seconds() - timeOfWeek;
+            double y_offset = this->now().seconds() - timeOfWeek;
             INS_local_offset_ = 0.005 * y_offset + 0.995 * INS_local_offset_;
         }
         // Publish with ROS time
@@ -2172,11 +2175,11 @@ rclcpp::Time InertialSenseROS::ros_time_from_start_time(const double time)
         if (!got_first_message_)
         {
             got_first_message_ = true;
-            INS_local_offset_ = this->get_clock()->now().seconds() - time;
+            INS_local_offset_ = this->now().seconds() - time;
         }
         else // low-pass filter offset to account for drift
         {
-            double y_offset = this->get_clock()->now().seconds() - time;
+            double y_offset = this->now().seconds() - time;
             INS_local_offset_ = 0.005 * y_offset + 0.995 * INS_local_offset_;
         }
         // Publish with ROS time
@@ -2275,18 +2278,15 @@ void InertialSenseROS::transform_6x6_covariance(float Pout[36], float Pin[36], i
     }
 }
 
-void InertialSenseROS::broadcat_tf2(tf2::Transform &tf, const nav_msgs::msg::Odometry &msg, const std::string& parent, const std::string& child)
+void InertialSenseROS::broadcast_tf2(const nav_msgs::msg::Odometry &msg)
 {
-    auto &pose = msg.pose.pose;
-    tf.setOrigin(tf2::Vector3(pose.position.x, pose.position.y, pose.position.z));
-    tf2::Quaternion q;
-    tf2::fromMsg(pose.orientation, q);
-    tf.setRotation(q);
-
     geometry_msgs::msg::TransformStamped t;
-    tf2::toMsg(tf, t.transform);
-    t.header.stamp = this->get_clock()->now();
-    t.header.frame_id = parent;
-    t.child_frame_id = child;
+    t.header = msg.header;
+    t.header.stamp = this->now();
+    t.child_frame_id = msg.child_frame_id;
+    t.transform.translation.x = msg.pose.pose.position.x;
+    t.transform.translation.y = msg.pose.pose.position.y;
+    t.transform.translation.z = msg.pose.pose.position.z;
+    t.transform.rotation = msg.pose.pose.orientation;
     br->sendTransform(t);
 };
