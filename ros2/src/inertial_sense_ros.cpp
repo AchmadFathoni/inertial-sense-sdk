@@ -77,7 +77,7 @@ void InertialSenseROS::initialize(bool configFlashParameters)
             start_log();    // Start log should happen last
         }
 
-        // configure_ascii_output(); // Currently not functional
+         configure_ascii_output(); // Currently not functional
     }
 }
 
