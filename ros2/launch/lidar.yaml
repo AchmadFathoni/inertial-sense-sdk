@@ -11,7 +11,7 @@ ins:
       enable: true
     did_ins4:
       enable: false  # we dont need the publisher, only the messages
-      period: 50     # if odom_ins_* enabled pimu period will be used
+      period: 10     # if odom_ins_* enabled pimu period will be used
 
 gps1:
   type: 'F9P'
