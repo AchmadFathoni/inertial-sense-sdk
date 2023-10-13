@@ -77,7 +77,7 @@ void InertialSenseROS::initialize(bool configFlashParameters)
             start_log();    // Start log should happen last
         }
 
-         configure_ascii_output(); // Currently not functional
+        configure_ascii_output(); // Currently not functional
     }
 }
 
@@ -497,6 +497,7 @@ void InertialSenseROS::configure_ascii_output()
     //  msgs.gpgsa = (NMEA_message_configuration & NMEA_GPGSA) ? NMEA_rate : 0;
     //  msgs.gprmc = (NMEA_message_configuration & NMEA_GPRMC) ? NMEA_rate : 0;
       IS_.SendData(DID_ASCII_BCAST_PERIOD, (uint8_t*)(&msgs), sizeof(ascii_msgs_t), 0);
+      IS_.SavePersistent();
 }
 
 /**
