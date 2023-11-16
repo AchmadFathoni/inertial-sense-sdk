@@ -77,7 +77,8 @@ void InertialSenseROS::initialize(bool configFlashParameters)
             start_log();    // Start log should happen last
         }
 
-         configure_ascii_output(); // Currently not functional
+        configure_ascii_output(); // Currently not functional
+        IS_.SavePersistent();
     }
 }
 
@@ -97,7 +98,6 @@ void InertialSenseROS::initializeIS(bool configFlashParameters) {
         IS_.StopBroadcasts(true);
         configure_data_streams(true);
         configure_rtk();
-        //IS_.SavePersistent();
 
         if (configFlashParameters)
         {   // Set IMX flash parameters (flash write) after everything else so processor stall doesn't interfere with communications.
