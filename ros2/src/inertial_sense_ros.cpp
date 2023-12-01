@@ -2021,14 +2021,14 @@ void InertialSenseROS::set_refLLA(const double newLLA[3], std::string& message, 
 void InertialSenseROS::set_current_position_as_refLLA(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
 {
     (void)req;
-    double current_lla_[3] = {lla_[0] * 180 / M_PI, lla_[1] * 180 / M_PI, lla_[2]};
+    double current_lla_[3];
+    lla_Rad2Deg_d(current_lla_, lla_);
     set_refLLA(current_lla_, res->message, res->success);
 }
 
 void InertialSenseROS::set_refLLA_to_value(const std::shared_ptr<inertial_sense_ros::srv::RefLLAUpdate::Request> req, std::shared_ptr<inertial_sense_ros::srv::RefLLAUpdate::Response> res)
 {
-    double new_lla_[3] = {req->lla[0], req->lla[1], req->lla[2]};
-    set_refLLA(new_lla_, res->message, res->success);
+    set_refLLA(reinterpret_cast<double(&)[3]>(req->lla), res->message, res->success);
 }
 
 void InertialSenseROS::perform_mag_cal_srv_callback(const std::shared_ptr<std_srvs::srv::Trigger::Request> req, std::shared_ptr<std_srvs::srv::Trigger::Response>  res)
