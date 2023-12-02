@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 //     const char* asciiMessage = "ASCB,3,20,0,0,0,0,0,100,0,0,0,0,0";
 
     if (!serialPortWriteAscii(&serialPort, asciiMessage, (int)strnlen(asciiMessage, 128)))
-	
+	{
 		printf("Failed to encode ASCII get INS message\r\n");
 		return -4;
 	}
