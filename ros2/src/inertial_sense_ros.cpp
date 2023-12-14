@@ -1611,12 +1611,12 @@ void InertialSenseROS::RTK_Misc_callback(eDataIDs DID, const gps_rtk_misc_t *con
     {
     case DID_GPS1_RTK_POS_MISC:
         rs_.rtk_pos.streamingCheck(this->get_logger(), DID);
-        rs_.rtk_pos.pubInfo->publish(rtk_info);
+        if (rs_.rtk_pos.pubInfo) rs_.rtk_pos.pubInfo->publish(rtk_info);
         break;
 
     case DID_GPS2_RTK_CMP_MISC:
         rs_.rtk_cmp.streamingCheck(this->get_logger(), DID);
-        rs_.rtk_cmp.pubInfo->publish(rtk_info);
+        if (rs_.rtk_cmp.pubInfo) rs_.rtk_cmp.pubInfo->publish(rtk_info);
         break;
     }
 }
@@ -1662,12 +1662,12 @@ void InertialSenseROS::RTK_Rel_callback(eDataIDs DID, const gps_rtk_rel_t *const
     {
     case DID_GPS1_RTK_POS_REL:
         rs_.rtk_pos.streamingCheck(this->get_logger(), DID, rs_.rtk_pos.streamingRel);
-        rs_.rtk_pos.pubRel->publish(rtk_rel);
+        if (rs_.rtk_pos.pubRel) rs_.rtk_pos.pubRel->publish(rtk_rel);
         break;
 
     case DID_GPS2_RTK_CMP_REL:
         rs_.rtk_cmp.streamingCheck(this->get_logger(), DID, rs_.rtk_cmp.streamingRel);
-        rs_.rtk_cmp.pubRel->publish(rtk_rel);
+        if (rs_.rtk_cmp.pubRel) rs_.rtk_cmp.pubRel->publish(rtk_rel);
         break;
     }
 
