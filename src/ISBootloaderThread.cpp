@@ -664,6 +664,11 @@ is_operation_result cISBootloaderThread::update(
     void						(*waitAction)()
 )
 {
+    string tmp;
+    uint32_t timeDeltaMs; 
+    uint32_t beginTimeMs;
+    uint32_t timeout;
+
     // Only allow one firmware update sequence to happen at a time
     m_update_mutex.lock();
     m_update_in_progress = true;
@@ -703,7 +708,7 @@ is_operation_result cISBootloaderThread::update(
     m_timeStart = current_timeMs();
 
     ////////////////////////////////////////////////////////////////////////////
-    // Run `mode_thread_serial_isb` to put all ISB devices into DFU/SAM-BA mode
+    // Run `mode_thread_serial_isb` to put all ISB devices into ROM bootloader mode
     ////////////////////////////////////////////////////////////////////////////
 
     while(m_continue_update && !true_if_cancelled())
@@ -818,11 +823,12 @@ is_operation_result cISBootloaderThread::update(
 
     m_continue_update = true;
     m_timeStart = current_timeMs();
-    uint32_t timeoutLong = current_timeMs();
 
     ////////////////////////////////////////////////////////////////////////////
     // Run `update_thread_serial` to update devices
     ////////////////////////////////////////////////////////////////////////////
+
+    beginTimeMs = current_timeMs();
 
     while (m_continue_update && !true_if_cancelled())
     {
@@ -910,14 +916,25 @@ is_operation_result cISBootloaderThread::update(
         m_libusb_thread_mutex.unlock();
         m_serial_thread_mutex.unlock();
 
-        // Timeout after 60 seconds
-        uint32_t timeout = (baudRate < 921600) ? 360000 : 120000;
-        if (current_timeMs() - timeoutLong > timeout)
+        // Timeout after 180 seconds
+        timeout = (baudRate < 921600) ? 360000 : 230000;
+        timeDeltaMs = current_timeMs() - beginTimeMs;
+
+        if (timeDeltaMs > timeout)
         {
             m_continue_update = false;
-            m_infoProgress(NULL, "Update timeout", IS_LOG_LEVEL_ERROR);
+
+            tmp = "Update timeout... Timeout of " + to_string(((double)timeout) / 1000) + " Seconds reached.";
+
+            m_infoProgress(NULL, tmp.c_str(), IS_LOG_LEVEL_ERROR);
         }
     }
+
+    timeDeltaMs = current_timeMs() - beginTimeMs;
+
+    tmp = "Update run time: " + to_string(((double)timeDeltaMs) / 1000) + " Seconds.";
+
+    m_infoProgress(NULL, tmp.c_str(), IS_LOG_LEVEL_INFO);
 
     threadJoinAndFree(libusb_thread);
 

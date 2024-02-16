@@ -4,7 +4,7 @@ The following example projects are provide with the SDK to demonstrate various c
 
 ## Example Projects
 
-* [Ascii Communications](Ascii/README) - How to communicate using ASCII NMEA protocol using SDK.
+* [Ascii Communications](Ascii/README) - How to communicate using NMEA protocol using SDK.
 * [Binary Communications](Communications/README) - How to communicate using InertialSense binary protocol using SDK. 
 * [Bootloader](bootloader/README) - How to update firmware on the InertialSense products using SDK.
 * [Logger ](Logger/README) - How to data log using using SDK.
@@ -47,12 +47,12 @@ The following steps will build executables for all of the example projects.
 
 The following steps will build executables for all of the example projects.
 
-1. Open Visual Studio solution file (inertial-sense-sdk\ExampleProjects\VS_project\AllExampleProjects.sln)
-2. Select the "Release" Solution Configuration.
-3. Build (F7)
+1. [Install and Configure Visual Studio](../getting-started/#installing-and-configuring-visual-studio)
+2. Open the project folder in Visual Studio: Open a local folder -> inertial-sense-sdk/ExampleProjects/
+3. Build All
 4. Run executable
    ``` bash
-   C:\inertial-sense-sdk\ExampleProjects\Ascii\VS_project\Release\[EXECUTABLE.EXE] COM3
+   C:\inertial-sense-sdk\ExampleProjects\[PROJECT]\...\[EXECUTABLE.EXE] COM3
    ```
 
 ## Summary

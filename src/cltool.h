@@ -30,16 +30,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #define APP_EXT                 ".exe"
 #define EXAMPLE_PORT            "COM5"
 #define EXAMPLE_LOG_DIR         "c:\\logs\\20170117_222549       "
-#define EXAMPLE_FIRMWARE_FILE   "c:\\fw\\IS_uINS-3.hex"
-#define EXAMPLE_BOOTLOADER_FILE "c:\\fw\\bootloader-SAMx70.bin"
+#define EXAMPLE_FIRMWARE_FILE   "c:\\fw\\IS_IMX-5.hex"
+#define EXAMPLE_BOOTLOADER_FILE "c:\\fw\\IS_bootloader-STM32L4.hex"
 #define EXAMPLE_SPACE_1         "    "
 #define EXAMPLE_SPACE_2         "   "
 #else
 #define APP_EXT	                ""
 #define EXAMPLE_PORT            "/dev/ttyS2"
 #define EXAMPLE_LOG_DIR         "logs/20170117_222549                "
-#define EXAMPLE_FIRMWARE_FILE   "fw/IS_uINS-3.hex"
-#define EXAMPLE_BOOTLOADER_FILE "fw/bootloader-SAMx70.bin"
+#define EXAMPLE_FIRMWARE_FILE   "fw/IS_IMX-5.hex"
+#define EXAMPLE_BOOTLOADER_FILE "fw/IS_bootloader-STM32L4.hex"
 #define EXAMPLE_SPACE_1         "    "
 #define EXAMPLE_SPACE_2			"         "
 #endif
@@ -58,7 +58,7 @@ typedef struct
 	bool forceBootloaderUpdate;				// -fb
 	bool bootloaderVerify; 					// -bv
 	bool replayDataLog;
-	bool softwareResetUins;
+	bool softwareResetImx;
 	bool softwareResetEvb;
 	bool magRecal;
 	uint32_t magRecalMode;
@@ -90,6 +90,7 @@ typedef struct
 	uint32_t outputOnceDid;	
 	
 	uint32_t sysCommand;
+	int32_t platformType;
 	bool chipEraseEvb2;
 } cmd_options_t;
 

@@ -280,14 +280,20 @@ void comManagerRegisterInstance(CMHANDLE cmInstance_, uint32_t dataId, pfnComMan
 
 void comManagerStep(void)
 {
-	comManagerStepRxInstance(&g_cm);
+	comManagerStepRxInstance(&g_cm, 0);
+	comManagerStepTxInstance(&g_cm);
+}
+
+void comManagerStepTimeout(uint32_t timeMs)
+{
+	comManagerStepRxInstance(&g_cm, timeMs);
 	comManagerStepTxInstance(&g_cm);
 }
 
 void comManagerStepInstance(CMHANDLE cmInstance_)
 {
 	com_manager_t* cmInstance = (com_manager_t*)cmInstance_;
-	comManagerStepRxInstance(cmInstance);
+	comManagerStepRxInstance(cmInstance, 0);
 	comManagerStepTxInstance(cmInstance);
 }
 
@@ -297,7 +303,7 @@ void comManagerStepInstance(CMHANDLE cmInstance_)
 // 	
 // } 
 
-void comManagerStepRxInstance(CMHANDLE cmInstance_)
+void comManagerStepRxInstance(CMHANDLE cmInstance_, uint32_t timeMs)
 {
 	com_manager_t* cmInstance = (com_manager_t*)cmInstance_;
 	int32_t pHandle;
@@ -320,7 +326,7 @@ void comManagerStepRxInstance(CMHANDLE cmInstance_)
 		// Read from serial buffer until empty
 		while (cmInstance->readCallback(cmInstance, pHandle, &c, 1))
 		{
-			if ((ptype = is_comm_parse_byte(comm, c)) != _PTYPE_NONE)
+			if ((ptype = is_comm_parse_byte_timeout(comm, c, timeMs)) != _PTYPE_NONE)
 			{
 
 #else	// Read a set of bytes (fast method)
@@ -335,7 +341,7 @@ void comManagerStepRxInstance(CMHANDLE cmInstance_)
 			comm->buf.tail += n;
 
 			// Search comm buffer for valid packets
-			while ((ptype = is_comm_parse(comm)) != _PTYPE_NONE)
+			while ((ptype = is_comm_parse_timeout(comm, timeMs)) != _PTYPE_NONE)
 			{
 #endif					
 				uint8_t error = 0;
@@ -367,7 +373,7 @@ void comManagerStepRxInstance(CMHANDLE cmInstance_)
 					}
 					break;
 
-				case _PTYPE_ASCII_NMEA:
+				case _PTYPE_NMEA:
 					if (cmInstance->cmMsgHandlerAscii)
 					{
 						error = (uint8_t)cmInstance->cmMsgHandlerAscii(cmInstance, pHandle, dataPtr, dataSize);
@@ -620,6 +626,22 @@ int comManagerSendRawDataInstance(CMHANDLE cmInstance, int pHandle, uint32_t dat
 	data.size = dataSize;
 
 	return comManagerSendInstance((com_manager_t*)cmInstance, pHandle, PID_SET_DATA, &bodyHdr, &data, CM_PKT_FLAGS_RAW_DATA_NO_SWAP);
+}
+
+int comManagerSendRaw(int pHandle, void *dataPtr, int dataSize)
+{
+	return comManagerSendRawInstance(&g_cm, pHandle, dataPtr, dataSize);
+}
+
+int comManagerSendRawInstance(CMHANDLE cmInstance, int pHandle, void* dataPtr, int dataSize)
+{
+	pfnComManagerSend sendCallback = ((com_manager_t*)cmInstance)->sendPacketCallback;
+	if (sendCallback == 0)
+	{
+		return -1;
+	}
+
+	return (sendCallback(cmInstance, pHandle, dataPtr, dataSize) ? 0: -1);
 }
 
 int comManagerDisableData(int pHandle, uint32_t dataId)
@@ -1124,7 +1146,7 @@ int sendPacket(com_manager_t* cmInstance, int pHandle, packet_t *dPkt, uint8_t a
 	return 0;
 }
 
-// Consolidate this with sendPacket() so that we break up packets into multiples that fit our buffer size.
+// Consolidate this with sendPacket() so that we break up packets into multiples that fit our buffer size.  Returns 0 on success, -1 on failure.
 int sendDataPacket(com_manager_t* cmInstance, int pHandle, pkt_info_t* msg)
 {
 	pfnComManagerSend sendCallback = cmInstance->sendPacketCallback;

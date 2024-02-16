@@ -80,10 +80,9 @@ void flipEndianess32(uint8_t* data, int dataLength)
 	
 	uint32_t* dataPtr = (void*)data;
 	uint32_t* dataPtrEnd = (void*)(data + dataLength);
-	uint32_t tmp;
 	while (dataPtr < dataPtrEnd)
 	{
-		tmp = *dataPtr;
+		uint32_t tmp = *dataPtr;
 		*dataPtr++ = SWAP32(tmp);
 	}
 }
@@ -91,13 +90,11 @@ void flipEndianess32(uint8_t* data, int dataLength)
 void flipDoubles(uint8_t* data, int dataLength, int offset, uint16_t* offsets, uint16_t offsetsLength)
 {
 	uint16_t* doubleOffsetsEnd = offsets + offsetsLength;
-	int offsetToDouble;
 	int maxDoubleOffset = dataLength - 8;
-    int isDouble;
 	while (offsets < doubleOffsetsEnd)
 	{
-        offsetToDouble = (*offsets++);
-        isDouble = ((offsetToDouble & 0x8000) == 0);
+        int offsetToDouble = (*offsets++);
+        int isDouble = ((offsetToDouble & 0x8000) == 0);
         offsetToDouble = (offsetToDouble & 0x7FFF) - offset;
 		if (offsetToDouble >= 0 && offsetToDouble <= maxDoubleOffset)
 		{
@@ -117,15 +114,12 @@ void flipDoubles(uint8_t* data, int dataLength, int offset, uint16_t* offsets, u
 void flipStrings(uint8_t* data, int dataLength, int offset, uint16_t* offsets, uint16_t offsetsLength)
 {
 	uint16_t* stringOffsetsEnd = offsets + offsetsLength;
-	int offsetToString;
-	int lengthOfString;
-	int maxStringOffset;
 
 	while (offsets < stringOffsetsEnd)
 	{
-		offsetToString = (*offsets++) - offset;
-		lengthOfString = (*offsets++);
-		maxStringOffset = dataLength - lengthOfString;
+		int offsetToString = (*offsets++) - offset;
+		int lengthOfString = (*offsets++);
+		int maxStringOffset = dataLength - lengthOfString;
 		if (offsetToString >= 0 && offsetToString <= maxStringOffset)
 		{
 			flipEndianess32(data + offsetToString, lengthOfString);
@@ -276,7 +270,7 @@ uint16_t* getDoubleOffsets(eDataIDs dataId, uint16_t* offsetsLength)
 		offsetsIns2,			//  5: DID_INS_2
 		offsetsGps,				//  6: DID_GPS1_POS
         0,  					//  7: DID_SYS_CMD
-		0,						//  8: DID_ASCII_BCAST_PERIOD
+		0,						//  8: DID_NMEA_BCAST_PERIOD
 		offsetsRmc,				//  9: DID_RMC
 		offsetsSysParams,		// 10: DID_SYS_PARAMS
 		offsetsOnlyTimeFirst,	// 11: DID_SYS_SENSORS
@@ -395,8 +389,8 @@ uint16_t* getDoubleOffsets(eDataIDs dataId, uint16_t* offsetsLength)
 
 	if (dataId < DID_COUNT)
 	{
-        uint16_t* offsets;
-        if ((offsets = s_doubleOffsets[dataId]))
+        uint16_t* offsets = s_doubleOffsets[dataId];
+        if (offsets)
         {
             *offsetsLength = (*offsets++);
             return offsets;
@@ -454,7 +448,7 @@ uint16_t* getStringOffsetsLengths(eDataIDs dataId, uint16_t* offsetsLength)
 		0,						//  5: DID_INS_2
 		0,						//  6: DID_GPS1_POS
 		0,						//  7: DID_SYS_CMD
-		0,						//  8: DID_ASCII_BCAST_PERIOD
+		0,						//  8: DID_NMEA_BCAST_PERIOD
 		0,						//  9: DID_RMC
 		0,						// 10: DID_SYS_PARAMS
 		0,						// 11: DID_SYS_SENSORS
@@ -572,8 +566,8 @@ uint16_t* getStringOffsetsLengths(eDataIDs dataId, uint16_t* offsetsLength)
 
     if (dataId < DID_COUNT)
 	{
-        uint16_t* offsets;
-        if ((offsets = s_stringOffsets[dataId]))
+        uint16_t* offsets = s_stringOffsets[dataId];
+        if (offsets)
         {
             *offsetsLength = (*offsets++);
             return offsets;
@@ -613,217 +607,78 @@ uint32_t flashChecksum32(const void* data, int size)
 	return checksum32((const uint8_t*)data + 8, size - 8);
 }
 
-// Convert DID to message out control mask
+// DID to RMC bit look-up table
+const uint64_t g_didToRmcBit[DID_COUNT_UINS] = 
+{
+	[DID_INS_1]                     = RMC_BITS_INS1,
+	[DID_INS_2]                     = RMC_BITS_INS2,
+	[DID_INS_3]                     = RMC_BITS_INS3,
+	[DID_INS_4]                     = RMC_BITS_INS4,
+	[DID_IMU3_UNCAL]                = RMC_BITS_IMU3_UNCAL,
+	[DID_IMU3_RAW]                  = RMC_BITS_IMU3_RAW,
+	[DID_IMU_RAW]                   = RMC_BITS_IMU_RAW,
+	[DID_IMU]                       = RMC_BITS_IMU,
+	[DID_PIMU]                      = RMC_BITS_PIMU,
+	[DID_REFERENCE_IMU]             = RMC_BITS_REFERENCE_IMU,
+	[DID_REFERENCE_PIMU]            = RMC_BITS_REFERENCE_PIMU,
+	[DID_BAROMETER]                 = RMC_BITS_BAROMETER,
+	[DID_MAGNETOMETER]              = RMC_BITS_MAGNETOMETER,
+	[DID_GPS1_POS]                  = RMC_BITS_GPS1_POS,
+	[DID_GPS2_POS]                  = RMC_BITS_GPS2_POS,
+	[DID_GPS1_VEL]                  = RMC_BITS_GPS1_VEL,
+	[DID_GPS2_VEL]                  = RMC_BITS_GPS2_VEL,
+	[DID_GPS1_SAT]                  = RMC_BITS_GPS1_SAT,
+	[DID_GPS2_SAT]                  = RMC_BITS_GPS2_SAT,
+	[DID_GPS1_SIG]                  = RMC_BITS_GPS1_SIG,
+	[DID_GPS2_SIG]                  = RMC_BITS_GPS2_SIG,
+	[DID_GPS1_RAW]                  = RMC_BITS_GPS1_RAW,
+	[DID_GPS2_RAW]                  = RMC_BITS_GPS2_RAW,
+	[DID_GPS_BASE_RAW]              = RMC_BITS_GPS_BASE_RAW,
+	[DID_GPS1_UBX_POS]              = RMC_BITS_GPS1_UBX_POS,
+	[DID_GPS1_RTK_POS]              = RMC_BITS_GPS1_RTK_POS,
+	[DID_GPS1_RTK_POS_REL]          = RMC_BITS_GPS1_RTK_POS_REL,
+	[DID_GPS1_RTK_POS_MISC]         = RMC_BITS_GPS1_RTK_POS_MISC,
+	[DID_GPS2_RTK_CMP_REL]          = RMC_BITS_GPS1_RTK_HDG_REL,
+	[DID_GPS2_RTK_CMP_MISC]         = RMC_BITS_GPS1_RTK_HDG_MISC,
+	[DID_STROBE_IN_TIME]            = RMC_BITS_STROBE_IN_TIME,
+	[DID_DIAGNOSTIC_MESSAGE]        = RMC_BITS_DIAGNOSTIC_MESSAGE,
+	[DID_INL2_NED_SIGMA]            = RMC_BITS_INL2_NED_SIGMA,
+	[DID_RTK_STATE]                 = RMC_BITS_RTK_STATE,
+	[DID_RTK_CODE_RESIDUAL]         = RMC_BITS_RTK_CODE_RESIDUAL,
+	[DID_RTK_PHASE_RESIDUAL]        = RMC_BITS_RTK_PHASE_RESIDUAL,
+	[DID_WHEEL_ENCODER]             = RMC_BITS_WHEEL_ENCODER,
+	[DID_GROUND_VEHICLE]            = RMC_BITS_GROUND_VEHICLE,
+	[DID_IMU_MAG]                   = RMC_BITS_IMU_MAG,
+	[DID_PIMU_MAG]                  = RMC_BITS_PIMU_MAG,		
+};
+
 uint64_t didToRmcBit(uint32_t dataId, uint64_t defaultRmcBits, uint64_t devInfoRmcBits)
 {
-	switch (dataId)
-	{
-		case DID_INS_1:					return RMC_BITS_INS1;
-		case DID_INS_2:					return RMC_BITS_INS2;
-		case DID_INS_3:					return RMC_BITS_INS3;
-		case DID_INS_4:					return RMC_BITS_INS4;
-		case DID_IMU3_UNCAL:			return RMC_BITS_IMU3_UNCAL;
-		case DID_IMU3_RAW:				return RMC_BITS_IMU3_RAW;
-		case DID_IMU_RAW:				return RMC_BITS_IMU_RAW;
-		case DID_IMU:					return RMC_BITS_IMU;
-		case DID_PIMU:					return RMC_BITS_PIMU;
-		case DID_REFERENCE_IMU:		    return RMC_BITS_REFERENCE_IMU;
-		case DID_REFERENCE_PIMU:		return RMC_BITS_REFERENCE_PIMU;
-		case DID_BAROMETER:				return RMC_BITS_BAROMETER;
-		case DID_MAGNETOMETER:			return RMC_BITS_MAGNETOMETER;
-		case DID_GPS1_POS:				return RMC_BITS_GPS1_POS;
-		case DID_GPS2_POS:				return RMC_BITS_GPS2_POS;
-		case DID_GPS1_VEL:				return RMC_BITS_GPS1_VEL;
-		case DID_GPS2_VEL:				return RMC_BITS_GPS2_VEL;
-		case DID_GPS1_SAT:				return RMC_BITS_GPS1_SAT;
-		case DID_GPS2_SAT:				return RMC_BITS_GPS2_SAT;
-		case DID_GPS1_RAW:				return RMC_BITS_GPS1_RAW;
-		case DID_GPS2_RAW:				return RMC_BITS_GPS2_RAW;
-		case DID_GPS_BASE_RAW:			return RMC_BITS_GPS_BASE_RAW;
-		case DID_GPS1_UBX_POS:			return RMC_BITS_GPS1_UBX_POS;
-		case DID_GPS1_RTK_POS:			return RMC_BITS_GPS1_RTK_POS;
-		case DID_GPS1_RTK_POS_REL:		return RMC_BITS_GPS1_RTK_POS_REL;
-		case DID_GPS1_RTK_POS_MISC:		return RMC_BITS_GPS1_RTK_POS_MISC;
-		case DID_GPS2_RTK_CMP_REL:		return RMC_BITS_GPS1_RTK_HDG_REL;
-		case DID_GPS2_RTK_CMP_MISC:		return RMC_BITS_GPS1_RTK_HDG_MISC;
-		case DID_STROBE_IN_TIME:		return RMC_BITS_STROBE_IN_TIME;
-		case DID_DIAGNOSTIC_MESSAGE:	return RMC_BITS_DIAGNOSTIC_MESSAGE;		
-		case DID_INL2_NED_SIGMA:		return RMC_BITS_INL2_NED_SIGMA;
-        case DID_RTK_STATE:         	return RMC_BITS_RTK_STATE;
-        case DID_RTK_CODE_RESIDUAL:     return RMC_BITS_RTK_CODE_RESIDUAL;
-        case DID_RTK_PHASE_RESIDUAL:    return RMC_BITS_RTK_PHASE_RESIDUAL;
-		case DID_WHEEL_ENCODER:         return RMC_BITS_WHEEL_ENCODER;
-		case DID_GROUND_VEHICLE:        return RMC_BITS_GROUND_VEHICLE;
-		case DID_IMU_MAG:               return RMC_BITS_IMU_MAG;
-		case DID_PIMU_MAG: 				return RMC_BITS_PIMU_MAG;
-		
-		case DID_DEV_INFO:				return devInfoRmcBits;		// This allows the dev info to respond instantly when first connected.
-		default:                        return defaultRmcBits;
-	}
+	if (dataId == DID_DEV_INFO)     { return devInfoRmcBits; }		// This allows the dev info to respond instantly when first connected.
+	else if (g_didToRmcBit[dataId]) { return g_didToRmcBit[dataId]; }
+	else                            { return defaultRmcBits; }
 }
 
-// Convert DID to ASCII message out control mask
-uint32_t didToAsciiRmcBits(uint32_t dataId)
+// DID to NMEA RMC bit look-up table
+const uint64_t g_didToNmeaRmcBit[DID_COUNT_UINS] = 
 {
-	switch (dataId)
-	{
-		case DID_IMU:					return ASCII_RMC_BITS_PIMU;
-		case DID_PIMU:					return ASCII_RMC_BITS_PPIMU;
-		case DID_IMU_RAW:				return ASCII_RMC_BITS_PRIMU;
-		case DID_INS_1:					return ASCII_RMC_BITS_PINS1;
-		case DID_INS_2:					return ASCII_RMC_BITS_PINS2;
-		case DID_GPS1_POS:				
-			return 
-				ASCII_RMC_BITS_PGPSP |
-				ASCII_RMC_BITS_GPGGA |
-				ASCII_RMC_BITS_GPGLL |
-				ASCII_RMC_BITS_GPGSA |
-				ASCII_RMC_BITS_GPRMC |
-				ASCII_RMC_BITS_GPZDA |
-				ASCII_RMC_BITS_PASHR;
-		case DID_DEV_INFO:				return ASCII_RMC_BITS_INFO;
-
-		default:                        return 0;
-	}
-}
-
-void julianToDate(double julian, int32_t* year, int32_t* month, int32_t* day, int32_t* hour, int32_t* minute, int32_t* second, int32_t* millisecond)
-{
-	double j1, j2, j3, j4, j5;
-	double intgr = floor(julian);
-	double frac = julian - intgr;
-	double gregjd = 2299161.0;
-	if (intgr >= gregjd)
-	{
-		//Gregorian calendar correction
-		double tmp = floor(((intgr - 1867216.0) - 0.25) / 36524.25);
-		j1 = intgr + 1.0 + tmp - floor(0.25 * tmp);
-	}
-	else
-	{
-		j1 = intgr;
-	}
-
-	//correction for half day offset
-	double dayfrac = frac + 0.5;
-	if (dayfrac >= 1.0)
-	{
-		dayfrac -= 1.0;
-		++j1;
-	}
-
-	j2 = j1 + 1524.0;
-	j3 = floor(6680.0 + ((j2 - 2439870.0) - 122.1) / 365.25);
-	j4 = floor(j3 * 365.25);
-	j5 = floor((j2 - j4) / 30.6001);
-
-	double d = floor(j2 - j4 - floor(j5 * 30.6001));
-	double m = floor(j5 - 1);
-	if (m > 12)
-	{
-		m -= 12;
-	}
-	double y = floor(j3 - 4715.0);
-	if (m > 2)
-	{
-		--y;
-	}
-	if (y <= 0)
-	{
-		--y;
-	}
-
-	//
-	// get time of day from day fraction
-	//
-	double hr = floor(dayfrac * 24.0);
-	double mn = floor((dayfrac * 24.0 - hr) * 60.0);
-	double f = ((dayfrac * 24.0 - hr) * 60.0 - mn) * 60.0;
-	double sc = f;
-	if (f - sc > 0.5)
-	{
-		++sc;
-	}
-
-	if (y < 0)
-	{
-		y = -y;
-	}
-	if (year)
-	{
-		*year = (int32_t)y;
-	}
-	if (month)
-	{
-		*month = (int32_t)m;
-	}
-	if (day)
-	{
-		*day = (int32_t)d;
-	}
-	if (hour)
-	{
-		*hour = (int32_t)hr;
-	}
-	if (minute)
-	{
-		*minute = (int32_t)mn;
-	}
-	if (second)
-	{
-		*second = (int32_t)sc;
-	}
-	if (millisecond)
-	{
-		*millisecond = (int32_t)((sc - floor(sc)) * 1000.0);
-	}
-}
-
-double gpsToUnix(uint32_t gpsWeek, uint32_t gpsTimeofWeekMS, uint8_t leapSeconds)
-{
-	double gpsSeconds = gpsWeek * SECONDS_PER_WEEK;
-	gpsSeconds += (gpsTimeofWeekMS / 1000);
-	double unixSeconds = gpsSeconds + GPS_TO_UNIX_OFFSET - leapSeconds;
-
-	return unixSeconds;
-}
-
-double gpsToJulian(int32_t gpsWeek, int32_t gpsMilliseconds, int32_t leapSeconds)
-{
-	double gpsDays = (double)gpsWeek * 7.0;
-	gpsDays += ((((double)gpsMilliseconds / 1000.0) - (double)leapSeconds) / 86400.0);
-	return (2444244.500000) + gpsDays; // 2444244.500000 Julian date for Jan 6, 1980 midnight - start of gps time
-}
-
-static void appendGPSTimeOfLastFix(const gps_pos_t* gps, char** buffer, int* bufferLength)
-{
-    unsigned int millisecondsToday = gps->timeOfWeekMs % 86400000;
-    unsigned int hours = millisecondsToday / 1000 / 60 / 60;
-    unsigned int minutes = (millisecondsToday / (1000 * 60)) % 60;
-    unsigned int seconds = (millisecondsToday / 1000) % 60;
-    int written = SNPRINTF(*buffer, *bufferLength, ",%02u%02u%02u", hours, minutes, seconds);
-    *bufferLength -= written;
-    *buffer += written;
-}
-
-static void appendGPSCoord(const gps_pos_t* gps, char** buffer, int* bufferLength, double v, const char* degreesFormat, char posC, char negC)
-{
-	(void)gps;
-    int degrees = (int)(v);
-    double minutes = (v - ((double)degrees)) * 60.0;
-
-    int written = SNPRINTF(*buffer, *bufferLength, degreesFormat, abs(degrees));
-    *bufferLength -= written;
-    *buffer += written;
-
-    written = SNPRINTF(*buffer, *bufferLength, "%07.4f,", fabs(minutes));
-    *bufferLength -= written;
-    *buffer += written;
-
-    written = SNPRINTF(*buffer, *bufferLength, "%c", (degrees >= 0 ? posC : negC));
-    *bufferLength -= written;
-    *buffer += written;
-}
+	[DID_IMU]                   = NMEA_RMC_BITS_PIMU,
+	[DID_PIMU]                  = NMEA_RMC_BITS_PPIMU,
+	[DID_IMU_RAW]               = NMEA_RMC_BITS_PRIMU,
+	[DID_INS_1]                 = NMEA_RMC_BITS_PINS1,
+	[DID_INS_2]                 = NMEA_RMC_BITS_PINS2,
+	[DID_GPS1_SAT]              = NMEA_RMC_BITS_GxGSV,
+	[DID_GPS1_POS]				=
+		NMEA_RMC_BITS_PGPSP |
+		NMEA_RMC_BITS_GxGGA |
+		NMEA_RMC_BITS_GxGLL |
+		NMEA_RMC_BITS_GxGSA |
+		NMEA_RMC_BITS_GxRMC |
+		NMEA_RMC_BITS_GxZDA |
+		NMEA_RMC_BITS_GxVTG |
+		NMEA_RMC_BITS_PASHR,
+	[DID_DEV_INFO]              = NMEA_RMC_BITS_INFO,
+};
 
 /* ubx gnss indicator (ref [2] 25) -------------------------------------------*/
 int ubxSys(int gnssID)
@@ -890,3 +745,24 @@ int satNumCalc(int gnssID, int svID) {
 	int prn = svID + (sys == SYS_QZS ? 192 : 0);
 	return satNo(sys, prn);
 }
+
+/** Populate missing hardware descriptor in dev_info_t */ 
+void devInfoPopulateMissingHardware(dev_info_t *devInfo)
+{
+	if (devInfo->hardware != DEV_INFO_HARDWARE_UNSPECIFIED)
+	{	// Hardware type is not missing
+		return;
+	}
+
+	int year = ((int)(devInfo->buildDate[1])) + 2000;
+	if (year <= 2024)
+	{	// Hardware from 2024 and earlier is detectible using hardware version
+		switch (devInfo->hardwareVer[0])	
+		{
+		case 2: devInfo->hardware = DEV_INFO_HARDWARE_EVB;  break;
+		case 3: devInfo->hardware = DEV_INFO_HARDWARE_UINS; break;
+		case 5: devInfo->hardware = DEV_INFO_HARDWARE_IMX;  break;
+		}
+	}
+}
+

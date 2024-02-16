@@ -140,7 +140,7 @@ typedef void(*pfnComManagerDisableBroadcasts)(CMHANDLE cmHandle, int pHandle);
 // Called right before data is to be sent.  Data is not sent if this callback returns 0.
 typedef int(*pfnComManagerPreSend)(CMHANDLE cmHandle, int pHandle, p_data_hdr_t *dataHdr);
 
-// ASCII message handler function, return 1 if message handled
+// NMEA message handler function, return 1 if message handled
 // typedef int(*pfnComManagerAsciiMessageHandler)(CMHANDLE cmHandle, int pHandle, unsigned char* messageId, unsigned char* line, int lineLength);
 
 // Generic message handler function, return 1 if message handled
@@ -239,7 +239,7 @@ typedef struct
 	// Broadcast message handler.  Called whenever we get a message broadcast request or message disable command.
 	pfnComManagerAsapMsg cmMsgHandlerRmc;
 
-	// Message handler - ASCII
+	// Message handler - NMEA
 	pfnComManagerGenMsgHandler cmMsgHandlerAscii;
 
 	// Message handler - Ublox
@@ -273,7 +273,7 @@ The instance functions can be ignored, unless you have a reason to have two com 
 
 Example:
 @code
-comManagerInit(20, 20, 10, 25, staticReadPacket, staticSendPacket, NULL, staticProcessRxData, staticProcessAck, 0);
+comManagerInit(20, 20, 10, 25, staticReadData, staticSendData, NULL, staticProcessRxData, staticProcessAck, 0);
 @endcode
 */
 int comManagerInit
@@ -315,8 +315,9 @@ int comManagerInitInstance
 Performs one round of sending and receiving message. This should be called as often as you want to send and receive data.
 */
 void comManagerStep(void);
+void comManagerStepTimeout(uint32_t timeMs);
 void comManagerStepInstance(CMHANDLE cmInstance_);
-void comManagerStepRxInstance(CMHANDLE cmInstance);
+void comManagerStepRxInstance(CMHANDLE cmInstance, uint32_t timeMs);
 void comManagerStepTxInstance(CMHANDLE cmInstance);
 
 /**
@@ -469,6 +470,22 @@ int comManagerSendRawData(int pHandle, uint32_t dataId, void* dataPtr, int dataS
 int comManagerSendRawDataInstance(CMHANDLE cmInstance, int pHandle, uint32_t dataId, void* dataPtr, int dataSize, int dataOffset);
 
 /**
+Write bare data directly to the serial port.
+
+@param pHandle the port handle to send data to
+@param dataPtr pointer to the data structure to send
+@param dataSize number of bytes to send
+@return 0 if success, anything else if failure
+
+Example:
+@code
+comManagerSendRaw(0, &g_devInfo, sizeof(dev_info_t));
+@endcode
+*/
+int comManagerSendRaw(int pHandle, void* dataPtr, int dataSize);
+int comManagerSendRawInstance(CMHANDLE cmInstance, int pHandle, void* dataPtr, int dataSize);
+
+/**
 Disables broadcasts of all messages on specified port, or all ports if phandle == -1.
 @param pHandle the pHandle to disable broadcasts on, -1 for all
 */
@@ -523,7 +540,7 @@ void comManagerRegisterInstance(CMHANDLE cmInstance, uint32_t dataId, pfnComMana
 Register message handler callback functions.  Pass in NULL to disable any of these callbacks.
 
 @param msgFunc handler for Realtime Message Controller (RMC) called whenever we get a message broadcast request or message disable command.
-@param msgFunc handler for ASCII messages.
+@param msgFunc handler for NMEA messages.
 @param msgFunc handler for ublox messages.
 @param msgFunc handler for RTCM3 messages.
 */

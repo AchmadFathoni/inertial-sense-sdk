@@ -146,8 +146,10 @@ extern void vPortFree(void* pv);
 #if PLATFORM_IS_EMBEDDED
 #include "../hw-libs/printf/printf.h"	// Use embedded-safe SNPRINTF
 #define SNPRINTF snprintf_
+#define VSNPRINTF vsnprintf_
 #else
 #define SNPRINTF snprintf
+#define VSNPRINTF vsnprintf
 #endif
 
 
@@ -178,7 +180,7 @@ extern void vPortFree(void* pv);
 #endif
 
 #ifndef STRNCPY
-#define STRNCPY(dst, src, maxlen) strncpy((char*)dst, (char*)src, maxlen)
+#define STRNCPY(dst, src, maxlen) strncpy((char*)(dst), (char*)(src), (maxlen))
 #endif
 
 #endif // defined(_MSC_VER)
@@ -212,9 +214,9 @@ extern void vPortFree(void* pv);
 #include <utime.h>
 #include <sys/stat.h>
 //#define _MKDIR(dir) mkdir(dir, S_IRWXU) // 777 owner access only 
-#define _MKDIR(dir) mkdir(dir, ACCESSPERMS) // 0777 access for all
-#define _RMDIR(dir) rmdir(dir)
-#define _GETCWD(buf, len) getcwd(buf, len)
+#define _MKDIR(dir) mkdir((dir), ACCESSPERMS) // 0777 access for all
+#define _RMDIR(dir) rmdir((dir))
+#define _GETCWD(buf, len) getcwd((buf), (len))
 #define _UTIME utime
 #define _UTIMEBUF struct utimbuf
 
@@ -236,6 +238,8 @@ extern void vPortFree(void* pv);
 #define POP_PACK _Pragma("pack(pop)")
 #define PACKED
 #endif
+
+#define NO_FUNC_OPTIMIZATION __attribute__((optimize(0)))       // Place this before the function name, i.e. void NO_FUNC_OPTIMIZATION my_func(){ ... }
 
 // #define PACKED_STRUCT typedef struct PACKED
 // #define PACKED_UNION typedef union PACKED
@@ -289,7 +293,7 @@ extern void vPortFree(void* pv);
 #endif
 
 #ifndef _ABS
-#define _ABS(a) (a < 0 ? -a : a)
+#define _ABS(a) ((a) < 0 ? -(a) : (a))
 #endif
 
 #ifndef _MAX 
@@ -301,11 +305,11 @@ extern void vPortFree(void* pv);
 #endif
 
 #ifndef _CLAMP
-#define _CLAMP(v, minV, maxV) (v < minV ? minV : (v > maxV ? maxV : v))
+#define _CLAMP(v, minV, maxV) ((v) < (minV) ? (minV) : ((v) > (maxV) ? (maxV) : (v)))
 #endif
 
 #ifndef _SATURATE
-#define _SATURATE(v) _CLAMP(v, 0, 1)
+#define _SATURATE(v) _CLAMP((v), 0, 1)
 #endif
 
 #ifndef _LIMIT
@@ -314,6 +318,14 @@ extern void vPortFree(void* pv);
 
 #ifndef _LIMIT2
 #define _LIMIT2(x, xmin, xmax) { if ((x) < (xmin)) { (x) = (xmin); } else { if ((x) > (xmax)) { (x) = (xmax); } } }
+#endif
+
+#ifndef _ROUND_CLOSEST
+#define _ROUND_CLOSEST(dividend, divisor) (((dividend) + ((divisor)/2)) / (divisor))
+#endif
+
+#ifndef _ROUNDUP
+#define _ROUNDUP(numToRound, multiple) ((((numToRound) + (multiple) - 1) / (multiple)) * (multiple))
 #endif
 
 #ifndef _ISNAN
@@ -370,7 +382,7 @@ extern void vPortFree(void* pv);
 #ifndef RAD2DEGMULT
 #define RAD2DEGMULT  (180.0f/M_PI)
 #endif
-#define ATanH(x)	    (0.5 * log((1 + x) / (1 - x)))
+#define ATanH(x)	    (0.5 * log((1 + (x)) / (1 - (x))))
 
 #if defined(__cplusplus)
 
@@ -387,7 +399,7 @@ extern void vPortFree(void* pv);
 #define CONST_EXPRESSION constexpr static
 #endif
 #ifndef STATIC_ASSERT
-#define STATIC_ASSERT(exp) static_assert(exp, #exp)
+#define STATIC_ASSERT(exp) static_assert((exp), #exp)
 #endif
 #ifndef OVERRIDE
 #define OVERRIDE override
@@ -433,7 +445,7 @@ extern void vPortFree(void* pv);
 // diff two times as uint32_t, handling wrap-around
 #define UINT32_TIME_DIFF(current, prev) ((uint32_t)(current) - (uint32_t)(prev))
 
-#define DT_TO_HZ(dt)	(((dt) == (0.0)) ? (0) : (1.0/dt))
+#define DT_TO_HZ(dt)	(((dt) == (0.0)) ? (0) : (1.0/(dt)))
 
 #define C_WEEKS_TO_SECONDS        604800.0      // Seconds per week
 #define C_WEEKS_TO_MILLISECONDS   604800000     // Milliseconds per week
@@ -555,6 +567,11 @@ extern void vPortFree(void* pv);
 #define C_DEG2RAD_F     0.017453292519943295769236907684886f
 #define C_RAD2DEG       57.295779513082320876798154814105
 #define C_RAD2DEG_F     57.295779513082320876798154814105f
+
+#define C_KMPH2MPS      0.277777777777777777
+#define C_KMPH2MPS_F    0.277777777777777777f
+#define C_MPS2KMPH      3.6
+#define C_MPS2KMPH_F    3.6f
 
 #define C_MM2M           0.001
 #define C_MM2M_F         0.001f
@@ -780,6 +797,11 @@ extern void vPortFree(void* pv);
 #define FLOAT2DOUBLE (double) // Used to prevent warning when compiling with -Wdouble-promotion in Linux
 
 #define REF_INS_SERIAL_NUMBER			99999										// 10101 was prior value
+
+#define INS_MAX_VELOCITY				500.0f				// (m/s)	INS operation limit - velocity.  Limited by GPS.
+#define INS_MAX_LATITUDE				C_PIDIV2			// (rad)	INS operation limit - latitude
+#define INS_MAX_LONGITUDE				C_PI				// (rad)	INS operation limit - longitude
+#define INS_MAX_ALTITUDE				50000.0				// (m)		INS operation limit - altitude.  Limited by GPS.  50 km = 164,042 ft, 15 km = 49,212 ft
 
 typedef float       f_t;
 typedef int			i_t;

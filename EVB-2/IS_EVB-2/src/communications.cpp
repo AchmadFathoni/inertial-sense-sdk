@@ -183,13 +183,13 @@ void callback_cdc_set_config(uint8_t port, usb_cdc_line_coding_t * cfg)
         // Set baudrate based on USB CDC baudrate
         if (g_flashCfg->cbf[EVB2_PORT_USB] & (1<<EVB2_PORT_UINS0))
         {
-            serSetBaudRate(EVB2_PORT_UINS0, baudrate);
+            serSyncBaudRate(EVB2_PORT_UINS0, &baudrate);
         }
 
         if (g_flashCfg->cbf[EVB2_PORT_USB] & (1<<EVB2_PORT_UINS1) &&
 		  !(g_flashCfg->cbOptions&EVB2_CB_OPTIONS_SPI_ENABLE))
         {
-            serSetBaudRate(EVB2_PORT_UINS1, baudrate);
+            serSyncBaudRate(EVB2_PORT_UINS1, &baudrate);
         }
     }
 
@@ -197,26 +197,25 @@ void callback_cdc_set_config(uint8_t port, usb_cdc_line_coding_t * cfg)
     {
         // 	    if(g_flashCfg->cbf[EVB2_PORT_USB] & (1<<EVB2_PORT_XBEE))
         // 	    {
-        // 		    serSetBaudRate(EVB2_PORT_XBEE, baudrate);
+        // 		    serSyncBaudRate(EVB2_PORT_XBEE, &baudrate);
         // 	    }
         if (g_flashCfg->cbf[EVB2_PORT_USB] & (1<<EVB2_PORT_XRADIO))
         {
-            serSetBaudRate(EVB2_PORT_XRADIO, baudrate);
+            serSyncBaudRate(EVB2_PORT_XRADIO, &baudrate);
         }
         if (g_flashCfg->cbf[EVB2_PORT_USB] & (1<<EVB2_PORT_BLE))
         {
-            serSetBaudRate(EVB2_PORT_BLE, baudrate);
+            serSyncBaudRate(EVB2_PORT_BLE, &baudrate);
         }
         if (g_flashCfg->cbf[EVB2_PORT_USB] & (1<<EVB2_PORT_SP330))
         {
-            serSetBaudRate(EVB2_PORT_SP330, baudrate);
+            serSyncBaudRate(EVB2_PORT_SP330, &baudrate);
         }
         if (g_flashCfg->cbf[EVB2_PORT_USB] & (1<<EVB2_PORT_GPIO_H8))
         {
-            serSetBaudRate(EVB2_PORT_GPIO_H8, baudrate);
+            serSyncBaudRate(EVB2_PORT_GPIO_H8, &baudrate);
         }
     }
-
 }
 
 void callback_cdc_set_dtr(uint8_t port, bool b_enable)
@@ -479,7 +478,7 @@ void log_uINS_data(cISLogger &logger, is_comm_instance_t &comm)
 				}
 				break;
 				
-			case _PTYPE_ASCII_NMEA:
+			case _PTYPE_NMEA:
 				break;
 
 			case _PTYPE_UBLOX:
@@ -499,7 +498,7 @@ extern void log_ublox_raw_to_SD(cISLogger& logger, uint8_t *dataPtr, uint32_t da
 
 void update_flash_cfg(evb_flash_cfg_t &newCfg)
 {
-    if(error_check_config(&newCfg))
+    if(error_check_evb_flash_cfg(&newCfg))
     {
         return;
     }
@@ -633,13 +632,26 @@ void handle_data_from_host(is_comm_instance_t *comm, protocol_type_t ptype, uint
 				g_status.evbStatus |= EVB_STATUS_MANF_UNLOCKED;
 				break;
 
-			case SYS_CMD_MANF_CHIP_ERASE:			// chip erase and reboot - do NOT reset calibration!
+			case SYS_CMD_MANF_ENABLE_ROM_BOOTLOADER:	// reboot into ROM bootloader mode
+				if(manfUnlock)
+				{
+					// Set "stay_in_bootloader" signature to require app firmware update following bootloader update.
+					write_bootloader_signature_stay_in_bootloader_mode();   
+
+					BEGIN_CRITICAL_SECTION
+					flash_rom_bootloader();
+					while(1);
+					END_CRITICAL_SECTION
+				}
+				break;
+
+			case SYS_CMD_MANF_CHIP_ERASE:		            // chip erase and reboot
 				if(manfUnlock)
 				{
 					BEGIN_CRITICAL_SECTION
-					
-					// erase chip
 					flash_erase_chip();
+					while(1);
+					END_CRITICAL_SECTION
 				}
 				break;
 			}
@@ -693,29 +705,28 @@ void handle_data_from_host(is_comm_instance_t *comm, protocol_type_t ptype, uint
 		}
 		break;
 
-	case _PTYPE_ASCII_NMEA:
+	case _PTYPE_NMEA:
 		{
-			uint32_t messageIdUInt = ASCII_MESSAGEID_TO_UINT(&(dataPtr[1]));
 			if(comm->dataHdr.size == 10)
 			{	// 4 character commands (i.e. "$STPB*14\r\n")
-				switch (messageIdUInt)
+				switch (getNmeaMsgId(dataPtr, comm->dataHdr.size))
 				{
-				case ASCII_MSG_ID_BLEN: // Enable bootloader (uINS)
+				case NMEA_MSG_ID_BLEN: // Enable bootloader (uINS)
 					g_uInsBootloaderEnableTimeMs = g_comm_time_ms;
 
 					// Disable EVB broadcasts
 					g_ermc.bits = 0;
 					break;
 							
-				case ASCII_MSG_ID_EBLE: // Enable bootloader (EVB)
+				case NMEA_MSG_ID_EBLE: // Enable bootloader (EVB)
 					// Disable uINS bootloader if host enables EVB bootloader
 					g_uInsBootloaderEnableTimeMs = 0;
 					
 					enable_bootloader(PORT_SEL_USB);
 					break;				
 
-				case ASCII_MSG_ID_STPB:
-				case ASCII_MSG_ID_STPC:	
+				case NMEA_MSG_ID_STPB:
+				case NMEA_MSG_ID_STPC:	
 					// Disable EVB communications
 					g_ermc.bits = 0;
 					break;
@@ -723,20 +734,20 @@ void handle_data_from_host(is_comm_instance_t *comm, protocol_type_t ptype, uint
 				break;							
 			}
 			else
-			{	// General ASCII							
-				switch (messageIdUInt)
+			{	// General NMEA							
+				switch (getNmeaMsgId(dataPtr, comm->dataHdr.size))
 				{
-				case ASCII_MSG_ID_NELB: // SAM bootloader assistant (SAM-BA) enable
+				case NMEA_MSG_ID_NELB: // SAM bootloader assistant (SAM-BA) enable
 					if (comm->dataHdr.size == 22 &&
 // 									(pHandle == EVB2_PORT_USB) && 
 						strncmp((const char*)(&(comm->buf.start[6])), "!!SAM-BA!!", 6) == 0)
 					{	// 16 character commands (i.e. "$NELB,!!SAM-BA!!\0*58\r\n")
-						enable_bootloader_assistant();
+						enable_rom_bootloader();
 					}
 					break;
 					
 				default:
-					// Disable uINS bootloader if host sends larger ASCII sentence
+					// Disable uINS bootloader if host sends larger NMEA sentence
 					g_uInsBootloaderEnableTimeMs = 0;
 					break;
 				}				
@@ -800,14 +811,14 @@ void sendRadio(uint8_t *data, int dataSize, bool sendXbee, bool sendXrad)
 			dataSize -= n;
 			ptr += n;
 		
-			while((ptype = is_comm_parse(&comm)) != _PTYPE_NONE)
+			while((ptype = is_comm_parse_timeout(&comm, g_comm_time_ms)) != _PTYPE_NONE)
 			{			
 				// Parse Data
 				switch(ptype)
 				{
 				case _PTYPE_UBLOX:
 				case _PTYPE_RTCM3:
-				case _PTYPE_ASCII_NMEA:
+				case _PTYPE_NMEA:
 					if(sendXbee){ comWrite(EVB2_PORT_XBEE, comm.dataPtr, comm.dataHdr.size, LED_XBEE_TXD_PIN); }
 					if(sendXrad){ comWrite(EVB2_PORT_XRADIO, comm.dataPtr, comm.dataHdr.size, 0); }
 					break;
@@ -857,7 +868,7 @@ void com_bridge_smart_forward(uint32_t srcPort, uint32_t ledPin)
 				
 		// Search comm buffer for valid packets
 		protocol_type_t ptype;
-		while((ptype = is_comm_parse(&comm)) != _PTYPE_NONE)
+		while((ptype = is_comm_parse_timeout(&comm, g_comm_time_ms)) != _PTYPE_NONE)
 		{
 			switch(srcPort)
 			{
@@ -930,7 +941,7 @@ void com_bridge_smart_forward_xstream(uint32_t srcPort, StreamBufferHandle_t xSt
 		
 		// Search comm buffer for valid packets
 		protocol_type_t ptype;
-		while ((ptype = is_comm_parse(&comm)) != _PTYPE_NONE)
+		while ((ptype = is_comm_parse_timeout(&comm, g_comm_time_ms)) != _PTYPE_NONE)
 		{
 			if (srcPort == EVB2_PORT_USB)
 			{

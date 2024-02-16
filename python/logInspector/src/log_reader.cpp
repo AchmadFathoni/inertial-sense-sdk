@@ -81,7 +81,6 @@ bool LogReader::init(py::object python_class, std::string log_directory, py::lis
     cout << "reading serial numbers ";
     for (int i = 0; i < (int)stl_serials.size(); i++)
         cout << stl_serials[i] << "\n";
-    cout << endl;
 
     // first try DAT files, if that doesn't work, then try SDAT files
     if (!logger_.LoadFromDirectory(log_directory, cISLogger::LOGTYPE_DAT, stl_serials))
@@ -95,7 +94,7 @@ bool LogReader::init(py::object python_class, std::string log_directory, py::lis
     vector<int> serialNumbers;
     for (int i = 0; i < (int)logger_.GetDeviceCount(); i++)
     {
-        cout << logger_.GetDeviceInfo(i)->serialNumber << "\t";
+        cout << (i==0 ? "  " : ", ") << logger_.GetDeviceInfo(i)->serialNumber;
         serialNumbers.push_back(logger_.GetDeviceInfo(i)->serialNumber);
     }
     cout << endl;
@@ -136,7 +135,7 @@ void LogReader::organizeData(int device_id)
         HANDLE_MSG( DID_INS_2, dev_log_->ins2 );
         HANDLE_MSG( DID_GPS1_UBX_POS, dev_log_->gps1UbxPos );
         HANDLE_MSG( DID_SYS_CMD, dev_log_->sysCmd );
-        // HANDLE_MSG( DID_ASCII_BCAST_PERIOD, dev_log_->asciiBcastPeriod );
+        // HANDLE_MSG( DID_NMEA_BCAST_PERIOD, dev_log_->nmeaBcastPeriod );
         // HANDLE_MSG( DID_RMC, dev_log_->rmc );
         HANDLE_MSG( DID_SYS_PARAMS, dev_log_->sysParams );
         HANDLE_MSG( DID_SYS_SENSORS, dev_log_->sysSensors );
@@ -228,7 +227,7 @@ void LogReader::forwardData(int device_id)
     forward_message( DID_INS_2, dev_log_->ins2, device_id );
     forward_message( DID_GPS1_UBX_POS, dev_log_->gps1UbxPos, device_id );
     forward_message( DID_SYS_CMD, dev_log_->sysCmd, device_id );
-    // forward_message( DID_ASCII_BCAST_PERIOD, dev_log_->asciiBcastPeriod, device_id );
+    // forward_message( DID_NMEA_BCAST_PERIOD, dev_log_->nmeaBcastPeriod, device_id );
     // forward_message( DID_RMC, dev_log_->rmc, device_id );
     forward_message( DID_SYS_PARAMS, dev_log_->sysParams, device_id );
     forward_message( DID_SYS_SENSORS, dev_log_->sysSensors, device_id );

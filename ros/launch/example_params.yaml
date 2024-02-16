@@ -28,22 +28,23 @@
 
 
 topic: "inertialsense"
-port: [/dev/ttyACM0, /dev/ttyACM1]
+port: [/dev/ttyACM0, /dev/ttyACM1, /dev/ttyACM2]
 baudrate: 921600
 enable_log: false
 publishTf: true                                 # Publish Transform Frame (TR)
 frame_id: ""                                    # FIXME: What is this?  is it just the FrameID to use in the ROS messages?
 mag_declination: 0.0
 ref_lla: [0.0, 0.0, 0.0]
+# factory_reset: true                             # Reset flash config to factory defaults on startup.
 
 # Hardware platform specifying the IMX carrier board type (i.e. EVB-2) and configuration bits (see ePlatformConfig).  The platform type is used to simplify the GPS and I/O configuration process.
-platformConfig: 1                                 # PLATFORM_CFG_TYPE_NONE_ONBOARD_M8
+# platformConfig: 1                               # PLATFORM_CFG_TYPE_NONE_ONBOARD_M8
 # platform: 10                                    # PLATFORM_CFG_TYPE_RUG3_G2
 # platformConfig: 11                              # PLATFORM_CFG_TYPE_EVB2_G2
 # platform: 15                                    # PLATFORM_CFG_TYPE_IG1_G2
 
-# IMX ioConfig (see eIoConfig)
-ioConfig:  0x00112044
+# Overwrite IMX ioConfig (see eIoConfig)
+# ioConfig: 0x00112044
 # ioConfig: 0x26CA060       # EVB2: GPS1 Ser1 F9P, GPS2 Ser2 F9P, PPS G8
 # ioConfig: 0x025CA060      # EVB2: GPS1 Ser1 F9P, GPS2 Ser0 F9P, PPS G8
 # ioConfig: 0x0244a060      # EVB2: GPS1 Ser1 F9P, GPS2 disabled F9P, PPS G8
@@ -71,7 +72,7 @@ ins:
   offset: [0, 0 ,0]                             # X,Y,Z offset in meters from Intermediate Output Frame to INS Output Frame.
   # navigation_dt_ms: 16                          # EKF update period.  IMX-5:  16 default, 8 max.  Use `msg/ins.../period` to reduce INS output data rate.
   navigation_dt_ms: 16                           # EKF update period.  uINS-3: 4  default, 1 max.  Use `msg/ins.../period` to reduce INS output data rate.
-  dynamic_model: 4                              # FIXME: these should be named types/srtring (PORTABLE, STATIONARY, AGV, UAV, etc)
+  dynamic_model: 8                              # FIXME: these should be named types/srtring (PORTABLE, STATIONARY, AGV, UAV, etc)
   enable_covariance: false                      # Include covariance data in odom_ins_... messages
   messages:
     odom_ins_enu:
@@ -304,5 +305,8 @@ rtk_base:
     xbee_radio:
       type: evb                                 # routes the RTCM3 corrections back to the EVB, and onto the comm-bridge -- FIXME: Not sure if this works.. still trying to wrap my head around the limits of the comm-bridge.
       port: "xbee"                              # FIXME: Maybe we don't need a port, since the comm-bridge configuration really handles this... it either goes to the EVB or it doesn't... or does it ALWAYS go to the EVB?
+
+diagnostics:
+  enable: true
 
 

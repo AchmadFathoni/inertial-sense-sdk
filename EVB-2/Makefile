@@ -23,8 +23,10 @@ ifeq ($(OS),Windows_NT) # Windows (any, not just NT)
 mkdir = mkdir $(subst /,\,$(1)) > nul 2>&1 || (exit 0)
 rm = rmdir /Q /S $(subst /,\,$(1)) > nul 2>&1 || (exit 0)
 
-COMPILER_DIR := C:/PROGRA~2/Atmel/Studio/7.0/toolchain/arm/arm-gnu-toolchain/bin
-
+COMPILER_DIR := $(subst \,/,C:/Inertial_Sense/compilers/arm-none-eabi-stm32/tools/bin)
+ifeq ("$(wildcard $(COMPILER_DIR)/*)","")
+COMPILER_DIR := $(subst \,/,C:/PROGRA~2/Atmel/Studio/7.0/toolchain/arm/arm-gnu-toolchain/bin)
+endif
 ifeq ("$(wildcard $(COMPILER_DIR)/*)","")
 $(error Windows: $(wildcard $(COMPILER_DIR)/*) compiler does not exist)	
 endif
@@ -113,6 +115,7 @@ C_SRCS += \
 	$(SDK_DIR)/src/ISMatrix.c                                                                      \
 	$(SDK_DIR)/src/ISPose.cpp                                                                      \
 	$(SDK_DIR)/src/ISUtilities.cpp                                                                 \
+	$(SDK_DIR)/src/protocol_nmea.cpp                                                               \
 	$(ASF_DIR)/sam/utils/syscalls/gcc/syscalls.c                                                   \
 	$(ASF_DIR)/common/components/memory/sd_mmc/sd_mmc.c                                            \
 	$(ASF_DIR)/common/components/memory/sd_mmc/sd_mmc_mem.c                                        \
@@ -306,14 +309,15 @@ DEFS += \
 	-DSD_MMC_ENABLE \
 	-DARM \
 	-D__INERTIAL_SENSE_EVB_2__ \
-	-DCONF_PERIPH
+	-DCONF_PERIPH \
+	-DEVB_2 \
 
 # CPU type flags
 CPU_FLAGS = \
 	-mcpu=cortex-m7 \
 	-mthumb \
 	-mfloat-abi=softfp \
-	-mfpu=fpv5-d16
+	-mfpu=fpv5-d16 \
 
 # Dependency flags
 DEP_FLAGS = -MD -MP -MF $(@:%.o=%.d) -MT$(@:%.o=%.d) -MT$(@:%.o=%.o)

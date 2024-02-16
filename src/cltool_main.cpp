@@ -34,6 +34,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // Contains command line parsing and utility functions.  Include this in your project to use these utility functions.
 #include "cltool.h"
+#include "protocol_nmea.h"
 
 #include <signal.h>
 
@@ -228,27 +229,24 @@ static bool cltool_setupCommunications(InertialSense& inertialSenseInterface)
 	}
     if (g_commandLineOptions.persistentMessages)
     {   // Save persistent messages to flash
-        system_command_t cfg;
-        cfg.command = SYS_CMD_SAVE_PERSISTENT_MESSAGES;
-        cfg.invCommand = ~cfg.command;
-        inertialSenseInterface.SendRawData(DID_SYS_CMD, (uint8_t*)&cfg, sizeof(system_command_t), 0);
+		cout << "Sending save persistent messages." << endl;
+        inertialSenseInterface.SendRaw((uint8_t*)NMEA_CMD_SAVE_PERSISTENT_MESSAGES_TO_FLASH, NMEA_CMD_SIZE);
     }
-    if (g_commandLineOptions.softwareResetUins)
+    if (g_commandLineOptions.softwareResetImx)
     {   // Issue software reset
-        system_command_t cfg;
-        cfg.command = SYS_CMD_SOFTWARE_RESET;
-        cfg.invCommand = ~cfg.command;
-        inertialSenseInterface.SendRawData(DID_SYS_CMD, (uint8_t*)&cfg, sizeof(system_command_t), 0);
+		cout << "Sending software reset." << endl;
+        inertialSenseInterface.SendRaw((uint8_t*)NMEA_CMD_SOFTWARE_RESET, NMEA_CMD_SIZE);
     }
     if (g_commandLineOptions.softwareResetEvb)
     {   // Issue software reset to EVB
+		cout << "Sending EVB software reset." << endl;
         uint32_t sysCommand = SYS_CMD_SOFTWARE_RESET;
         inertialSenseInterface.SendRawData(DID_EVB_STATUS, (uint8_t*)&sysCommand, sizeof(uint32_t), offsetof(evb_status_t, sysCommand));
     }
     if (g_commandLineOptions.chipEraseEvb2)
     {   // Chip erase EVB
-        uint32_t sysCommand;
-		
+		cout << "Sending EVB chip erase." << endl;
+        uint32_t sysCommand;		
 		sysCommand = SYS_CMD_MANF_UNLOCK;
         inertialSenseInterface.SendRawData(DID_EVB_STATUS, (uint8_t*)&sysCommand, sizeof(uint32_t), offsetof(evb_status_t, sysCommand));
         sysCommand = SYS_CMD_MANF_CHIP_ERASE;
@@ -256,7 +254,23 @@ static bool cltool_setupCommunications(InertialSense& inertialSenseInterface)
     }
     if (g_commandLineOptions.sysCommand != 0)
     {   // Send system command to IMX
-		cout << "Sending system command: " << g_commandLineOptions.sysCommand << endl;
+		cout << "Sending system command: " << g_commandLineOptions.sysCommand;
+		switch(g_commandLineOptions.sysCommand)
+		{
+		case SYS_CMD_ENABLE_SERIAL_PORT_BRIDGE_USB_TO_GPS1:
+		case SYS_CMD_ENABLE_SERIAL_PORT_BRIDGE_USB_TO_GPS2:
+		case SYS_CMD_ENABLE_SERIAL_PORT_BRIDGE_USB_TO_SER0:
+		case SYS_CMD_ENABLE_SERIAL_PORT_BRIDGE_USB_TO_SER1:
+		case SYS_CMD_ENABLE_SERIAL_PORT_BRIDGE_USB_TO_SER2:
+		case SYS_CMD_ENABLE_SERIAL_PORT_BRIDGE_SER0_TO_GPS1:
+			cout << " Enable serial bridge"; break;
+		case SYS_CMD_DISABLE_SERIAL_PORT_BRIDGE:
+			cout << "Disable serial bridge"; break;
+		case SYS_CMD_MANF_FACTORY_RESET:            cout << " Factory Reset";           break;
+		case SYS_CMD_MANF_CHIP_ERASE:               cout << " Chip Erase";              break;
+		case SYS_CMD_MANF_DOWNGRADE_CALIBRATION:    cout << " Downgrade Calibration";   break;
+		}
+		cout << endl;
 		system_command_t cfg;
 
 		cfg.command = SYS_CMD_MANF_UNLOCK;
@@ -266,7 +280,21 @@ static bool cltool_setupCommunications(InertialSense& inertialSenseInterface)
 		cfg.command = g_commandLineOptions.sysCommand;
 		cfg.invCommand = ~cfg.command;
 		inertialSenseInterface.SendRawData(DID_SYS_CMD, (uint8_t*)&cfg, sizeof(system_command_t), 0);
+		return false;
     }
+	if (g_commandLineOptions.platformType >= 0 && g_commandLineOptions.platformType < PLATFORM_CFG_TYPE_COUNT)
+	{	
+		// Confirm 
+		cout << "CAUTION!!!\n\nSetting the device(s) platform type in OTP memory.  This can only be done a limited number of times.\n\nPlatform: " << g_commandLineOptions.platformType << "\n\n";
+
+		// Set platform type in OTP memory
+		manufacturing_info_t manfInfo = {};
+		manfInfo.key = 72720;
+		manfInfo.platformType = g_commandLineOptions.platformType;
+		// Write key (uint32_t) and platformType (int32_t), 8 bytes
+		inertialSenseInterface.SendRawData(DID_MANUFACTURING_INFO, (uint8_t*)&manfInfo.key, sizeof(uint32_t)*2, offsetof(manufacturing_info_t, key));
+		return false;
+	}
 
 	if (g_commandLineOptions.roverConnection.length() != 0)
 	{
@@ -520,7 +548,6 @@ static int inertialSenseMain()
 	// clear display
 	g_inertialSenseDisplay.SetDisplayMode((cInertialSenseDisplay::eDisplayMode)g_commandLineOptions.displayMode);
 	g_inertialSenseDisplay.SetKeyboardNonBlocking();
-	g_inertialSenseDisplay.Clear();
 
 	// if replay data log specified on command line, do that now and return
 	if (g_commandLineOptions.replayDataLog)
@@ -619,8 +646,6 @@ static int inertialSenseMain()
 				cout << "Unknown exception...";
 			}
 		}
-
-		cout << "Shutting down..." << endl;
 
 		// [C++ COMM INSTRUCTION] STEP 6: Close interface
 		// Close cleanly to ensure serial port and logging are shutdown properly.  (optional)

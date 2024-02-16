@@ -25,6 +25,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include "libusb.h"
 #include "ISUtilities.h"
 
+#include <stdarg.h>
+#include <stdio.h>
 #include <string>
 #include <mutex>
 
@@ -67,12 +69,12 @@ typedef enum {
     IS_IMAGE_SIGN_UINS_3_24K = 0x00000010,
     IS_IMAGE_SIGN_EVB_2_16K = 0x00000020,
     IS_IMAGE_SIGN_EVB_2_24K = 0x00000040,
-    IS_IMAGE_SIGN_UINS_5 = 0x00000080,
+    IS_IMAGE_SIGN_IMX_5 = 0x00000080,
     
     IS_IMAGE_SIGN_NUM_BITS_USED = 8,
 
-    IS_IMAGE_SIGN_APP = IS_IMAGE_SIGN_UINS_3_16K | IS_IMAGE_SIGN_UINS_3_24K | IS_IMAGE_SIGN_EVB_2_16K | IS_IMAGE_SIGN_EVB_2_24K | IS_IMAGE_SIGN_UINS_5 | IS_IMAGE_SIGN_ISB_SAMx70_16K | IS_IMAGE_SIGN_ISB_SAMx70_24K | IS_IMAGE_SIGN_ISB_STM32L4,
-    IS_IMAGE_SIGN_ISB = IS_IMAGE_SIGN_UINS_3_16K | IS_IMAGE_SIGN_UINS_3_24K | IS_IMAGE_SIGN_EVB_2_16K | IS_IMAGE_SIGN_EVB_2_24K | IS_IMAGE_SIGN_UINS_5 | IS_IMAGE_SIGN_ISB_SAMx70_16K | IS_IMAGE_SIGN_ISB_SAMx70_24K | IS_IMAGE_SIGN_ISB_STM32L4,
+    IS_IMAGE_SIGN_APP = IS_IMAGE_SIGN_UINS_3_16K | IS_IMAGE_SIGN_UINS_3_24K | IS_IMAGE_SIGN_EVB_2_16K | IS_IMAGE_SIGN_EVB_2_24K | IS_IMAGE_SIGN_IMX_5 | IS_IMAGE_SIGN_ISB_SAMx70_16K | IS_IMAGE_SIGN_ISB_SAMx70_24K | IS_IMAGE_SIGN_ISB_STM32L4,
+    IS_IMAGE_SIGN_ISB = IS_IMAGE_SIGN_UINS_3_16K | IS_IMAGE_SIGN_UINS_3_24K | IS_IMAGE_SIGN_EVB_2_16K | IS_IMAGE_SIGN_EVB_2_24K | IS_IMAGE_SIGN_IMX_5 | IS_IMAGE_SIGN_ISB_SAMx70_16K | IS_IMAGE_SIGN_ISB_SAMx70_24K | IS_IMAGE_SIGN_ISB_STM32L4,
     IS_IMAGE_SIGN_SAMBA = IS_IMAGE_SIGN_ISB_SAMx70_16K | IS_IMAGE_SIGN_ISB_SAMx70_24K,
     IS_IMAGE_SIGN_DFU = IS_IMAGE_SIGN_ISB_STM32L4,
 
@@ -282,8 +284,19 @@ public:
 
 protected:
     void status_update(const char* info, eLogLevel level) 
-    { 
+    {
         if(m_info_callback) m_info_callback((void*)this, info, level); 
+    }
+    void status_update(void* obj, eLogLevel level, const char *fmt, ...) 
+    { 
+        if(!m_info_callback) return;
+
+        char msg[200] = { 0 };
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(msg, sizeof(msg), fmt, args);
+        va_end(args);
+        m_info_callback(obj, msg, level);
     }
 
     struct

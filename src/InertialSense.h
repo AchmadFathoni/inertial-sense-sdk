@@ -46,6 +46,8 @@ extern "C"
 
 #include <functional>
 
+#define SYNC_FLASH_CFG_CHECK_PERIOD_MS      200
+
 class InertialSense;
 
 typedef std::function<void(InertialSense* i, p_data_t* data, int pHandle)> pfnHandleBinaryData;
@@ -65,8 +67,9 @@ public:
 		dev_info_t devInfo;
 		system_command_t sysCmd;
 		nvm_flash_cfg_t flashCfg;
+		unsigned int flashCfgUploadTimeMs;		// (ms) non-zero time indicates an upload is in progress and local flashCfg should not be overwritten  
 		evb_flash_cfg_t evbFlashCfg;
-		uint8_t syncState;
+		sys_params_t sysParams;
 	};
 
 	struct com_manager_cpp_state_t
@@ -93,23 +96,24 @@ public:
 
 	/**
 	* Constructor
-	* @param callback binary data callback, optional. If specified, ALL BroadcastBinaryData requests will callback to this function.
+	* @param callbackIsb InertialSense binary received data callback (optional). If specified, ALL BroadcastBinaryData requests will callback to this function.
+	* @param callbackRmc Real-time message controller received data callback (optional).
+	* @param callbackNmea NMEA received received data callback (optional).
+	* @param callbackUblox Ublox binary received data callback (optional).
+	* @param callbackRtcm3 RTCM3 received data callback (optional).
+	* @param callbackSpartn Spartn received data callback (optional).
 	*/
-	InertialSense(pfnHandleBinaryData callback = NULL);
+	InertialSense(
+		pfnHandleBinaryData        callbackIsb = NULL,
+		pfnComManagerAsapMsg       callbackRmc = NULL,
+		pfnComManagerGenMsgHandler callbackNmea = NULL,
+		pfnComManagerGenMsgHandler callbackUblox = NULL, 
+		pfnComManagerGenMsgHandler callbackRtcm3 = NULL );
 
 	/**
 	* Destructor
 	*/
 	virtual ~InertialSense();
-
-	/**
-	* Set functions pointers called when various message types are received.
-	*/
-	void SetCallbacks(
-		pfnComManagerAsapMsg handlerRmc=NULLPTR,
-		pfnComManagerGenMsgHandler handlerAscii=NULLPTR,
-		pfnComManagerGenMsgHandler handlerUblox=NULLPTR, 
-		pfnComManagerGenMsgHandler handlerRtcm3=NULLPTR);
 
 	/**
 	* Closes any open connection and then opens the device
@@ -118,7 +122,7 @@ public:
 	* @param disableBroadcastsOnClose whether to send a stop broadcasts command to all units on Close
 	* @return true if opened, false if failure (i.e. baud rate is bad or port fails to open)
 	*/
-	bool Open(const char* port, int baudRate=IS_COM_BAUDRATE_DEFAULT, bool disableBroadcastsOnClose=false);
+	bool Open(const char* port, int baudRate=IS_BAUDRATE_DEFAULT, bool disableBroadcastsOnClose=false);
 
 	/**
 	* Check if the connection is open
@@ -195,6 +199,11 @@ public:
 	void CloseServerConnection();
 
 	/**
+	* Request device(s) version information (dev_info_t).
+	*/
+	void QueryDeviceInfo();
+
+	/**
 	* Turn off all messages.  Current port only if allPorts = false.
 	*/
 	void StopBroadcasts(bool allPorts=true);
@@ -203,6 +212,11 @@ public:
      * Current data streaming will continue streaming at boot. 
      */
     void SavePersistent();
+
+    /**
+     * Software reset device(s) with open serial port.
+     */
+	void SoftwareReset();
 
 	/**
 	* Send data to the uINS - this is usually only used for advanced or special cases, normally you won't use this method
@@ -214,13 +228,20 @@ public:
 	void SendData(eDataIDs dataId, uint8_t* data, uint32_t length, uint32_t offset);
 
 	/**
-	* Send raw data to the uINS - this is usually only used for advanced or special cases, normally you won't use this method
+	* Send raw data to the uINS - (byte swapping disabled)
 	* @param dataId the data id of the data to send
 	* @param data the data to send
 	* @param length length of data to send
 	* @param offset offset into data to send at
 	*/
 	void SendRawData(eDataIDs dataId, uint8_t* data, uint32_t length = 0, uint32_t offset = 0);
+
+	/**
+	* Send raw (bare) data directly to serial port
+	* @param data the data to send
+	* @param length length of data to send
+	*/
+	void SendRaw(uint8_t* data, uint32_t length);
 
 	/**
 	* Get the device info
@@ -253,7 +274,7 @@ public:
 	/**
 	* Set device configuration
 	* @param pHandle the pHandle to set sysCmd for
-	* @param command system command value
+	* @param command system command value (see eSystemCommand)
 	*/
 	void SetSysCmd(const uint32_t command, int pHandle = -1);
 
@@ -266,11 +287,19 @@ public:
 	bool GetFlashConfig(nvm_flash_cfg_t &flashCfg, int pHandle = 0); 
 
 	/**
+	* Indicates whether the current IMX flash config has been downloaded and available via GetFlashConfig().
+	* @param pHandle the port pHandle to get flash config for
+	* @return bool whether the flash config is valid, currently synchronized.
+	*/
+	bool FlashConfigSynced(int pHandle = 0) { is_device_t &device = m_comManagerState.devices[pHandle]; return device.flashCfg.checksum == device.sysParams.flashCfgChecksum; }
+
+	/**
 	* Set the flash config and update flash config on the uINS flash memory
 	* @param flashCfg the flash config
 	* @param pHandle the pHandle to set flash config for
+	* @return int number bytes sent 
 	*/
-	void SetFlashConfig(nvm_flash_cfg_t &flashCfg, int pHandle = 0);
+	int SetFlashConfig(nvm_flash_cfg_t &flashCfg, int pHandle = 0);
 
 	/**
 	* Get the EVB flash config, returns the latest flash config read from the uINS flash memory
@@ -284,10 +313,12 @@ public:
 	* Set the EVB flash config and update flash config on the EVB-2 flash memory
 	* @param evbFlashCfg the flash config
 	* @param pHandle the pHandle to set flash config for
+	* @return int number bytes sent 
 	*/
-	void SetEvbFlashConfig(evb_flash_cfg_t &evbFlashCfg, int pHandle = 0);
+	int SetEvbFlashConfig(evb_flash_cfg_t &evbFlashCfg, int pHandle = 0);
 
-	void ProcessRxData(p_data_t* data, int pHandle);
+	void ProcessRxData(int pHandle, p_data_t* data);
+	void ProcessRxNmea(int pHandle, const uint8_t* msg, int msgSize);
 
 	/**
 	* Broadcast binary data
@@ -333,6 +364,21 @@ public:
 	* @return string IP address and port
 	*/
 	std::string GetClientConnectionInfo() { return m_clientStream->ConnectionInfo(); }
+
+	/**
+	* Flush all data from receive port
+	*/
+	void FlushRx()
+	{
+		uint8_t buf[10];
+		for (size_t i = 0; i < m_comManagerState.devices.size(); i++)
+		{
+			if (!serialPortIsOpen(&m_comManagerState.devices[i].serialPort))
+			{
+			    while (serialPortReadTimeout(&(m_comManagerState.devices[i].serialPort), buf, sizeof(buf), 0));
+			}
+		}
+	}
 
 	/**
 	* Get access to the underlying serial port
@@ -403,15 +449,9 @@ public:
 	std::string getServerMessageStatsSummary() { return messageStatsSummary(m_serverMessageStats); }
 	std::string getClientMessageStatsSummary() { return messageStatsSummary(m_clientMessageStats); }
 
-	// Sync state between this class and IMX device
-	enum IMXSyncState
-	{
-		NOT_SYNCHRONIZED    = 0,   // Download needed
-		SYNCHRONIZING       = 1,   // Uploading
-		SYNCHRONIZED        = 2,   // Flash config on IMX and locally match
-	};
-
-	int GetSyncState(int pHandle) { return m_comManagerState.devices[pHandle].syncState; }
+	// Used for testing
+	InertialSense::com_manager_cpp_state_t* GetComManagerState() { return &m_comManagerState; }	
+	InertialSense::is_device_t* GetComManagerDevice(int pHandle=0) { if (pHandle >= (int)m_comManagerState.devices.size()) return NULLPTR; return &(m_comManagerState.devices[pHandle]); }
 
 protected:
 	bool OnClientPacketReceived(const uint8_t* data, uint32_t dataLength);
@@ -422,6 +462,7 @@ protected:
 
 private:
 	InertialSense::com_manager_cpp_state_t m_comManagerState;
+	pfnComManagerGenMsgHandler m_handlerNmea = NULLPTR;
 	cISLogger m_logger;
 	void* m_logThread;
 	cMutex m_logMutex;
@@ -447,6 +488,7 @@ private:
 	is_comm_instance_t m_gpComm;
 	uint8_t m_gpCommBuffer[PKT_BUF_SIZE];
 	mul_msg_stats_t m_serverMessageStats = {};
+	unsigned int m_syncCheckTimeMs = 0;
 
 	// returns false if logger failed to open
 	bool UpdateServer();
@@ -461,7 +503,7 @@ private:
 	static void LoggerThread(void* info);
 	static void StepLogger(InertialSense* i, const p_data_t* data, int pHandle);
 	static void BootloadStatusUpdate(void* obj, const char* str);
-	void UpdateFlashConfigSyncState(uint32_t rxChecksum, int pHandle);
+	void SyncFlashConfig(unsigned int timeMs);
 };
 
 #endif
