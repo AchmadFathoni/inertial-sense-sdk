@@ -78,7 +78,7 @@ void InertialSenseROS::initialize(bool configFlashParameters)
         }
 
         configure_ascii_output(); // Currently not functional
-        IS_.SavePersistent();
+        //IS_.SavePersistent();
     }
 }
 
