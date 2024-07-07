@@ -13,6 +13,15 @@ ins:
       enable: false  # we dont need the publisher, only the messages
       period: 10     # if odom_ins_* enabled pimu period will be used
 
+sensors:
+  messages:
+    imu:
+      topic: "ins_imu"
+      enable: true
+    magnetometer:
+      topic: "ins_mag"
+      enable: true
+
 gps1:
   type: 'F9P'
 
